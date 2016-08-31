@@ -1,1 +1,1 @@
-web: java -jar Tumblr2FB.jar -FB
+web: java -jar target/Tumblr2FB.jar -FB
