@@ -43,6 +43,7 @@ public class Main {
 
         //<editor-fold defaultstate="collapsed" desc="Read params and initialize">
         log(true, "==================================================");
+        log(true, "Running on Heroku!");
         
         // Set defaults here
         tumblerReadMode = TRM_PARTSYNC;
@@ -89,7 +90,12 @@ public class Main {
             log(true, "Nothing to do, exiting...");
         }
 
+
         String workingPath = new File(Main.class.getProtectionDomain().getCodeSource().getLocation().getPath()).getParentFile().getPath() + File.separator;
+        /*
+        
+        Only required for SQLite
+        
         dbFileName = workingPath + "Tumblr2FB.db";
         dbFileName = "d:\\Dropbox\\Technarium\\Facebook\\Tumblr2FB.db";
         File f = new File(dbFileName);
@@ -97,6 +103,7 @@ public class Main {
             log(true, "DB file ["+dbFileName+"] is missing, exiting!");
             return;
         }
+        */
         log(true, "Starting up in: " + workingPath);
         log(true, "Tasks: ");
         log(true, " - Sync Tumblr: " + (taskTumblrSync?(tumblerReadMode==TRM_FULLSYNC?"FULL":"PARTIAL"):"NO"));
@@ -142,7 +149,7 @@ public class Main {
             Map<String, String> options = new HashMap<>();
             List<com.tumblr.jumblr.types.Post> posts;
 
-            //Long latestTimestamp = latestTumblrPost();
+            //String latestTimestamp = latestTumblrPost();
             boolean done = false;
 
             TextPost textPost;
@@ -169,7 +176,7 @@ public class Main {
                             element = segment.getFirstElement("img");
                             imageURL = (element != null) ? element.getAttributeValue("src") : null;
 
-                            done = !saveTumblerPost(post.getId(), post.getDateGMT(), post.getTimestamp(), post.getShortUrl(), postType, post.getState(), null, null, imageURL, null, "blog.technariumas.lt", post.getShortUrl());
+                            done = !saveTumblerPost(post.getId().toString(), post.getDateGMT(), post.getTimestamp().intValue(), post.getShortUrl(), postType, post.getState(), null, null, imageURL, null, "blog.technariumas.lt", post.getShortUrl());
                             break;
                         case "quote":
 
@@ -179,27 +186,27 @@ public class Main {
                             element = segment.getFirstElement("img");
                             imageURL = (element != null) ? element.getAttributeValue("src") : null;
 
-                            done = !saveTumblerPost(post.getId(), post.getDateGMT(), post.getTimestamp(), post.getShortUrl(), postType, post.getState(), null, "\""+te.toString()+"\"", imageURL, null, null, ((quotePost.getSourceUrl() != null) ? quotePost.getSourceUrl() : post.getShortUrl()));
+                            done = !saveTumblerPost(post.getId().toString().toString(), post.getDateGMT(), post.getTimestamp().intValue(), post.getShortUrl(), postType, post.getState(), null, "\""+te.toString()+"\"", imageURL, null, null, ((quotePost.getSourceUrl() != null) ? quotePost.getSourceUrl() : post.getShortUrl()));
                             break;
                         case "link":
-                            done = !saveTumblerPost(post.getId(), post.getDateGMT(), post.getTimestamp(), post.getShortUrl(), postType, post.getState(), null, null, null, null, null, post.getShortUrl());
+                            done = !saveTumblerPost(post.getId().toString(), post.getDateGMT(), post.getTimestamp().intValue(), post.getShortUrl(), postType, post.getState(), null, null, null, null, null, post.getShortUrl());
                             break;
                         case "answer":
                             break;
                         case "video":
                             com.tumblr.jumblr.types.VideoPost videoPost = (com.tumblr.jumblr.types.VideoPost)post;
-                            done = !saveTumblerPost(post.getId(), post.getDateGMT(), post.getTimestamp(), post.getShortUrl(), postType, post.getState(), null, null, null, null, null, videoPost.getPermalinkUrl());
+                            done = !saveTumblerPost(post.getId().toString(), post.getDateGMT(), post.getTimestamp().intValue(), post.getShortUrl(), postType, post.getState(), null, null, null, null, null, videoPost.getPermalinkUrl());
                             break;
                         case "audio":
                             com.tumblr.jumblr.types.AudioPost audioPost = (com.tumblr.jumblr.types.AudioPost)post;
-                            done = !saveTumblerPost(post.getId(), post.getDateGMT(), post.getTimestamp(), post.getShortUrl(), postType, post.getState(), null, null, null, null, null, audioPost.getAudioUrl());
+                            done = !saveTumblerPost(post.getId().toString(), post.getDateGMT(), post.getTimestamp().intValue(), post.getShortUrl(), postType, post.getState(), null, null, null, null, null, audioPost.getAudioUrl());
                             break;
                         case "photo":
                             break;
                         case "chat":
                             break;
                         default:
-                            done = !saveTumblerPost(post.getId(), post.getDateGMT(), post.getTimestamp(), post.getShortUrl(), postType, post.getState(), null, null, null, null, null, post.getShortUrl());
+                            done = !saveTumblerPost(post.getId().toString(), post.getDateGMT(), post.getTimestamp().intValue(), post.getShortUrl(), postType, post.getState(), null, null, null, null, null, post.getShortUrl());
                             break;
                     }
                     if (tumblerReadMode==TRM_PARTSYNC && done) break;
@@ -235,7 +242,7 @@ public class Main {
 
             log(true, "FACEBOOK page name: " + page.getName());
 
-            Long tumblrID;
+            String tumblrID;
             String tumblrDateGMT;
             String tumblrType;
             String facebookID;
@@ -261,7 +268,7 @@ public class Main {
 
                 //if (counter++ > 3) break;
 
-                tumblrID = rs.getLong("Tumblr_ID");
+                tumblrID = rs.getString("Tumblr_ID");
                 tumblrDateGMT = rs.getString("Tumblr_DateGMT");
                 tumblrType = rs.getString("Tumblr_Type");
                 facebookMessage = rs.getString("FB_Message");
@@ -321,26 +328,45 @@ public class Main {
         //</editor-fold>
     }
     
-    static int getTumblrPostsCount(Long postID) throws SQLException {
+    static int getTumblrPostsCount(String postID) throws SQLException {
         PreparedStatement ps = dbConnection.prepareStatement("select count (*) from posts where Tumblr_ID = ?");        
-        ps.setLong(1, postID);
+        ps.setString(1, postID);
         ResultSet rs = ps.executeQuery();
         if (rs.next()) return rs.getInt(1);
         return -1;
     }
 
-    static Long latestTumblrPost() throws SQLException {
+    static String latestTumblrPost() throws SQLException {
         PreparedStatement ps = dbConnection.prepareStatement("select max(Tumblr_Timestamp) from posts");
         ResultSet rs = ps.executeQuery();
-        if (rs.next()) return rs.getLong(1);
+        if (rs.next()) return rs.getString(1);
         return null;
     }    
+    
+    /*
+    
+    OLD, for SQLite
     
     static void connectDB() throws ClassNotFoundException {
         // Load JDBC driver
         Class.forName("org.sqlite.JDBC");
         try {
           dbConnection = DriverManager.getConnection("jdbc:sqlite:"+dbFileName);
+        }
+        catch(SQLException e) {
+          System.err.println(e.getMessage());
+        }
+    }
+    */
+
+    static void connectDB() throws ClassNotFoundException {
+        // Load JDBC driver
+        Class.forName("org.postgresql.Driver");
+        try {
+          String dbUrl = System.getenv("JDBC_DATABASE_URL");
+          dbConnection = DriverManager.getConnection(dbUrl);
+          //dbConnection = DriverManager.getConnection("jdbc:postgresql://ec2-54-225-72-148.compute-1.amazonaws.com:5432/dargq8fa2soe1v?ssl=true&sslfactory=org.postgresql.ssl.NonValidatingFactory");
+          
         }
         catch(SQLException e) {
           System.err.println(e.getMessage());
@@ -396,9 +422,9 @@ public class Main {
     }
     
     static boolean saveTumblerPost(
-            Long tumblrID
+            String tumblrID
             , String tumblrDateGMT
-            , Long tumblrTimestamp
+            , Integer tumblrTimestamp
             , String tumblrURL
             , String tumblrType
             , String tumblrState
@@ -468,7 +494,7 @@ public class Main {
         if (!emulation) {
             int paramNumber = 1;
             tempPS.setString(paramNumber++, tumblrDateGMT);
-            tempPS.setLong(paramNumber++, tumblrTimestamp);        
+            tempPS.setInt(paramNumber++, tumblrTimestamp);        
             tempPS.setString(paramNumber++, tumblrURL);
             tempPS.setString(paramNumber++, tumblrType);
             tempPS.setString(paramNumber++, tumblrState);
@@ -478,14 +504,14 @@ public class Main {
             tempPS.setString(paramNumber++, facebookName);
             tempPS.setString(paramNumber++, facebookCaption);
             tempPS.setString(paramNumber++, facebookURL);
-            tempPS.setLong(paramNumber++, tumblrID);
+            tempPS.setString(paramNumber++, tumblrID);
             tempPS.executeUpdate();
         }
         log(true, "OK");
         return true;
     }
     
-    static void updateFBPostState(Long tumblrID, String facebookID, String newState) throws SQLException {
+    static void updateFBPostState(String tumblrID, String facebookID, String newState) throws SQLException {
         
         // For now, only insert new records, no updates yet
         if (getTumblrPostsCount(tumblrID) == 0) {
@@ -499,12 +525,13 @@ public class Main {
                 "update posts set "
                     + "FB_ID = ?"
                     + ", FB_State = ?"
-                    + ", FB_PublishedTime = datetime('now')"
+                    // + ", FB_PublishedTime = datetime('now')" // For SQLite
+                    + ", FB_PublishedTime = to_char(CURRENT_TIMESTAMP AT TIME ZONE 'EEST', 'YYYY-MM-DD HH24:MI:SS')" // FOr PostgreSQL
                 + " where Tumblr_ID = ?");
         
         psUpdate.setString(1, facebookID);
         psUpdate.setString(2, newState);
-        psUpdate.setLong(3, tumblrID);        
+        psUpdate.setString(3, tumblrID);        
         psUpdate.executeUpdate();
     }
 
